@@ -1,8 +1,12 @@
 #include "Python.h"
 #include <math.h>
+
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
 #include "numpy/ndarraytypes.h"
+#include "numpy/ndarrayobject.h"
 //#include "numpy/ufuncobject.h"
-#include "numpy/npy_3kcompat.h"
+//#include "numpy/npy_3kcompat.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -25,6 +29,8 @@
                                             (m)*PyArray_STRIDES(obj)[4] + \
                                             (n)*PyArray_STRIDES(obj)[5]))
 
+
+#define IN_REQUIREMENTS	(NPY_ARRAY_C_CONTIGUOUS|NPY_ARRAY_ALIGNED)
 
 
 static PyObject *
@@ -53,10 +59,10 @@ py_convolve(PyObject *dummy, PyObject *args)
         &arr1, &arr2, 
         &mode)) return NULL;
         
-    a = (PyArrayObject *)(PyArray_FROM_OTF(arr1, NPY_DOUBLE, NPY_IN_ARRAY));
+    a = (PyArrayObject *)(PyArray_FROM_OTF(arr1, NPY_DOUBLE, IN_REQUIREMENTS));
     if (a == NULL) goto fail;
     
-    f = (PyArrayObject *)(PyArray_FROM_OTF(arr2, NPY_DOUBLE, NPY_IN_ARRAY));
+    f = (PyArrayObject *)(PyArray_FROM_OTF(arr2, NPY_DOUBLE, IN_REQUIREMENTS));
     if (f == NULL) goto fail;
     
     npy_intp *ashape = PyArray_SHAPE(a);
@@ -207,7 +213,7 @@ py_pool(PyObject *dummy, PyObject *args)
     int nb, input_x, input_y, input_c;
     int output_x, output_y;
         
-    input = (PyArrayObject *)(PyArray_FROM_OTF(inp, NPY_DOUBLE, NPY_IN_ARRAY));
+    input = (PyArrayObject *)(PyArray_FROM_OTF(inp, NPY_DOUBLE, IN_REQUIREMENTS));
     if (input == NULL)
         return NULL;
     
@@ -324,13 +330,13 @@ py_pool_back(PyObject *dummy, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOiiii", &arr1, &arr2, 
         &pool_y, &pool_x, &output_y, &output_x)) return NULL;
     
-    grads = (PyArrayObject *)(PyArray_FROM_OTF(arr1, NPY_DOUBLE, NPY_IN_ARRAY));
+    grads = (PyArrayObject *)(PyArray_FROM_OTF(arr1, NPY_DOUBLE, IN_REQUIREMENTS));
     if (grads == NULL)
     {
         return NULL;
     }
 
-    pool_index = (PyArrayObject *)(PyArray_FROM_OTF(arr2, NPY_INT, NPY_IN_ARRAY));
+    pool_index = (PyArrayObject *)(PyArray_FROM_OTF(arr2, NPY_INT, IN_REQUIREMENTS));
     if (pool_index == NULL)
     {
         Py_DECREF(grads);
@@ -346,7 +352,7 @@ py_pool_back(PyObject *dummy, PyObject *args)
     grad_y = grad_shape[1];
     grad_x = grad_shape[2];
     channels = grad_shape[3];
-    dtype = grads -> descr -> type_num;
+    dtype = PyArray_TYPE(grads);
     
     npy_intp *index_shape = PyArray_SHAPE(pool_index);
     index_y = index_shape[1];
@@ -407,11 +413,13 @@ py_pool_back(PyObject *dummy, PyObject *args)
                     int dy = *(int*)ipc;
                     int dx = *(int*)(ipc + index_stride_d);
                 
+#if 0
                     if( 0 )
                         printf("%d, %d, %d, %d, %d+%d, %d+%d <- %f\n", 
                             ib, y, x, c,
                                 y*pool_y, dy, x*pool_x, dx, 
                                 *(double*)gpc);
+#endif
                     *(double*)PyArray_GETPTR4(output, ib, y*pool_y+dy, x*pool_x+dx, c) = 
                         //*(double*)PyArray_GETPTR4(grads, ib, y, x, c);
                         *(double*)gpc;
@@ -476,12 +484,12 @@ PyObject *py_convolve_3d(PyObject *dummy, PyObject *args)
     
     //printf("args:%d,%d,%d,%d,%d\n", s1, s2, nout_x, nout_y, nout_z);
     //printf("arr1=%x\n", arr1);
-    //a = (PyArrayObject *)(PyArray_FROM_OTF(arr1, NPY_DOUBLE, NPY_IN_ARRAY));
+    //a = (PyArrayObject *)(PyArray_FROM_OTF(arr1, NPY_DOUBLE, IN_REQUIREMENTS));
     //printf("a converted\n");
     
     //printf("converting f\n");
     
-    f = (PyArrayObject *)arr2;           //(PyArray_FROM_OTF(arr2, NPY_DOUBLE, NPY_IN_ARRAY));
+    f = (PyArrayObject *)arr2;           //(PyArray_FROM_OTF(arr2, NPY_DOUBLE, IN_REQUIREMENTS));
     //printf("f converted\n");
     if (f == NULL) goto fail;
     
@@ -654,10 +662,10 @@ PyObject *py_convolve_back_3d(PyObject *dummy, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOi(iii)", 
         &arr1, &arr2, &s, &nout_x, &nout_y, &nout_z)) return NULL;
         
-    a = (PyArrayObject *)arr1;  //(PyArray_FROM_OTF(arr1, NPY_DOUBLE, NPY_IN_ARRAY));
+    a = (PyArrayObject *)arr1;  //(PyArray_FROM_OTF(arr1, NPY_DOUBLE, IN_REQUIREMENTS));
     if (a == NULL) goto fail;
     
-    f = (PyArrayObject *)arr2;  //(PyArray_FROM_OTF(arr2, NPY_DOUBLE, NPY_IN_ARRAY));
+    f = (PyArrayObject *)arr2;  //(PyArray_FROM_OTF(arr2, NPY_DOUBLE, IN_REQUIREMENTS));
     if (f == NULL) goto fail;
     
     npy_intp *ashape = PyArray_SHAPE(a);
@@ -794,7 +802,7 @@ PyObject *py_pool_3d(PyObject *dummy, PyObject *args)
     int nb, input_x, input_y, input_z, input_c;
     int output_x, output_y, output_z;
         
-    input = (PyArrayObject *)inp;   //(PyArray_FROM_OTF(inp, NPY_DOUBLE, NPY_IN_ARRAY));
+    input = (PyArrayObject *)inp;   //(PyArray_FROM_OTF(inp, NPY_DOUBLE, IN_REQUIREMENTS));
     if (input == NULL)
         return NULL;
     
@@ -941,13 +949,13 @@ PyObject *py_pool_back_3d(PyObject *dummy, PyObject *args)
     if (!PyArg_ParseTuple(args, "OOiiiiii", &arr1, &arr2, 
         &pool_x, &pool_y, &pool_z, &output_x, &output_y, &output_z)) return NULL;
     
-    grads = (PyArrayObject *)arr1;  //(PyArray_FROM_OTF(arr1, NPY_DOUBLE, NPY_IN_ARRAY));
+    grads = (PyArrayObject *)arr1;  //(PyArray_FROM_OTF(arr1, NPY_DOUBLE, IN_REQUIREMENTS));
     if (grads == NULL)
     {
         return NULL;
     }
 
-    pool_index = (PyArrayObject *)arr2; //(PyArray_FROM_OTF(arr2, NPY_INT, NPY_IN_ARRAY));
+    pool_index = (PyArrayObject *)arr2; //(PyArray_FROM_OTF(arr2, NPY_INT, IN_REQUIREMENTS));
     if (pool_index == NULL)
     {
         //Py_DECREF(grads);
@@ -964,7 +972,7 @@ PyObject *py_pool_back_3d(PyObject *dummy, PyObject *args)
     grad_y  = grad_shape[2];
     grad_z  = grad_shape[3];
     channels = grad_shape[4];
-    dtype = grads -> descr -> type_num;
+    dtype = PyArray_TYPE(grads);
     
     npy_intp *index_shape = PyArray_SHAPE(pool_index);
     index_x = index_shape[1];
@@ -1067,15 +1075,29 @@ static PyMethodDef module_methods[] = {
 
     
     
+#if 0
 #ifndef PyMODINIT_FUNC	/* declarations for DLL import/export */
 #define PyMODINIT_FUNC void
 #endif
+#endif
+
+
+static struct PyModuleDef cconvmodule = {
+    PyModuleDef_HEAD_INIT,
+    "cconv",   /* name of module */
+    "Low level convolution network library", /* module documentation, may be NULL */
+    -1,       /* size of per-interpreter state of the module,
+                 or -1 if the module keeps state in global variables. */
+    module_methods
+};
+
+
 PyMODINIT_FUNC
-initcconv(void) 
+PyInit_cconv(void) 
 {
     PyObject* m;
 
-    m = Py_InitModule3("cconv", module_methods,
-                       "Low level convolution network library");
+    m = PyModule_Create(&cconvmodule);
     import_array();
+	return m;
 }
